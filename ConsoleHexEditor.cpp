@@ -25,6 +25,8 @@ BOOL bResult;
 DWORD dwError;
 LARGE_INTEGER fileSize;
 
+size_t numGroupedData = 0;
+
 // functions
 void readValues();
 void drawValues();
@@ -139,7 +141,7 @@ public:
 			++cursorPos.coord.Y;
 			cursorPos.coord.X %= len + 1;
 		}
-		std::wcout << '$' << (short)input;
+		std::wcout << (short)input;
 		return *this;
 	}
 	myConsoleHandler& operator<<(BYTE input)
@@ -151,10 +153,20 @@ public:
 			++cursorPos.coord.Y; // Does not currently support strings that go beyond the width * 2
 			cursorPos.coord.X %= len + 1;
 		}
+		
 		std::wcout << '$';
 		if (input <= 0xf) // add a leading 0 if it is not 2 chars long
 			std::wcout << '0';
 		std::wcout << (short)input;
+
+		if(numGroupedData)
+		{
+			LARGE_INTEGER li{ovlpt.Offset,ovlpt.OffsetHigh};
+			if (((li.QuadPart + (cursorPos.coord.X + (cursorPos.coord.Y * width)) + 1) % numGroupedData) == 0)
+			{
+				operator<<(L"   "); // three characters to keep the values from being cut off at the end when displayed (not sure this comment is clear enough)
+			}
+		}
 		return *this;
 	}
 
@@ -329,6 +341,22 @@ int wmain(int argc, wchar_t* argv[])
 		typedInput = _getch();
 		switch (typedInput)
 		{
+		case 'g':
+		{
+			// group bytes by typed number
+			size_t input;
+			consoleHandler.cursorPos = COORD{ 0, height - 1 };
+			consoleHandler.clearChars(width - 1);
+			std::cin >> input;
+			numGroupedData = input;
+			consoleHandler.cursorPos = COORD{ 0, 0 };
+			consoleHandler.cursorPos = COORD{ 0, 1 };
+			cursorPos = 0;
+			consoleHandler.clearScreen();
+			drawValues();
+			drawCursor();
+		}
+		break;
 		case 'j':
 		{
 			// Jump to typed position
